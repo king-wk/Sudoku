@@ -2,6 +2,7 @@
 #include<fstream>
 #include <stdlib.h>
 #include <time.h> 
+#include <algorithm>
 #pragma warning(disable:4996)
 using namespace std;
 
@@ -16,170 +17,100 @@ int maxblank = 0;
 int number = 0; // 生成游戏个数
 bool unique = false; // 生成解是否唯一
 ofstream out;
-struct makePair {
-	int cv1;
-	int cv2;
-	int cv3;
-	bool operator == (const makePair &rhs);
-};
-bool makePair::operator == (const makePair &rhs)
-{
-	return ((cv1 == rhs.cv1) && (cv2 == rhs.cv2) && (cv3 == rhs.cv3));
-}
-makePair pairs[18] = {
-		{1,2,3},{1,3,2},{2,1,3},{2,3,1},{3,2,1},{3,1,2},
-		{4,5,6},{4,6,5},{5,4,6},{5,6,4},{6,5,4},{6,4,5},
-		{7,8,9},{7,9,8},{8,7,9},{8,9,7},{9,8,7},{9,7,8}
-};
+int firstLine[9] = { 1,2,3,4,5,6,7,8,9 };//第一行
+int shift[8] = { 3, 6, 1, 4, 7, 2, 5, 8 };//第2-9行所需移位
+int cv1[3] = { 3, 4, 5 };
+int cv2[3] = { 6, 7, 8 };
+int s1=1, s2=1;
 
-//初始化种子终盘并清空输出文件夹
+void swap(int &a, int &b) {
+	int temp = a;
+	a = b;
+	b = temp;
+}
+//清空输出文件夹
 void init() {
-	ifstream in;
-	in.open("D://Software Project//sudoku//seed_map.txt");
-	for (int k = 0; k < 4; k++) {
-		for (int i = 0; i < 9; i++) {
-			for (int j = 0; j < 9; j++) {
-				in >> seed_map[k][i][j];
-			}
-		}
-	}
-	in.close();//读取完成之后关闭文件
+	memcpy(sudoku_map[0], firstLine, sizeof(firstLine));
+	ofstream clear;
+	clear.open("D://Software Project//sudoku//test.txt");
+	clear << "";
+	clear.close();
 	out.open("D://Software Project//sudoku//test.txt", ios::app);
+}
+
+void exchange_456(int s1)     //中间4，5，6行的变换
+{
+	if (s1 == 1) { cv1[0] = 3; cv1[1] = 4; cv1[2] = 5; }
+	if (s1 == 2) { cv1[0] = 3; cv1[1] = 5; cv1[2] = 4; }
+	if (s1 == 3) { cv1[0] = 4; cv1[1] = 3; cv1[2] = 5; }
+	if (s1 == 4) { cv1[0] = 4; cv1[1] = 5; cv1[2] = 3; }
+	if (s1 == 5) { cv1[0] = 5; cv1[1] = 3; cv1[2] = 4; }
+	if (s1 == 6) { cv1[0] = 5; cv1[1] = 4; cv1[2] = 3; }
+}
+
+void exchange_789(int s2)     //最后7，8，9行的变换
+{
+	if (s2 == 1) { cv2[0] = 6; cv2[1] = 7; cv2[2] = 8; }
+	if (s2 == 2) { cv2[0] = 6; cv2[1] = 8; cv2[2] = 7; }
+	if (s2 == 3) { cv2[0] = 7; cv2[1] = 6; cv2[2] = 8; }
+	if (s2 == 4) { cv2[0] = 7; cv2[1] = 8; cv2[2] = 6; }
+	if (s2 == 5) { cv2[0] = 8; cv2[1] = 6; cv2[2] = 7; }
+	if (s2 == 6) { cv2[0] = 8; cv2[1] = 7; cv2[2] = 6; }
 }
 
 //辅助函数 终盘->文件
 void out_to_txt() {
-	for (int i = 0; i < 9; i++) {
-		for (int j = 0; j < 9; j++) {
-			out << sudoku_map[i][j]<<" ";
+	exchange_456(s1);
+	exchange_789(s2); //判断当前两个参数表示哪两种顺序
+	//输出数独
+	for (int i = 0; i < 9; i++)
+	{
+		int k = i;
+		if (k >= 3 && k <= 5) k = cv1[k - 3];
+		else if (k > 5) k = cv2[k - 6];
+		for (int j = 0; j <= 8; j++) {
+			int kt = j * 2;
+			out << sudoku_map[k][j];
+			out << " ";
 		}
-		out << '\n';
+		out << endl;
 	}
-	out << "\n";
+	out << endl;
 }
 
-//辅助函数（转换法）1 数字交换
-void exchange_number(int value1,int value2) {
-	//int randNum = rand() % 4;
-	memcpy(sudoku_map, seed_map[0], sizeof(seed_map[0]));
-	for (int i = 0; i < 9; i++) {
-		for (int j = 0; j < 9; j++) {
-			if (sudoku_map[i][j] == value1) {
-				sudoku_map[i][j] = 0;
-			}
-			if (sudoku_map[i][j] == value2) {
-				sudoku_map[i][j] = value1;
-			}
-		}
-	}
-	for (int i = 0; i < 9; i++) {
-		for (int j = 0; j < 9; j++) {
-			if (sudoku_map[i][j] == 0) {
-				sudoku_map[i][j] = value2;
-			}
-		}
-	}
+void produce()  //第一行已知，通过变换得到完整的数独终局
+{
+	for (int i = 1; i < 9; i++)
+		for (int j = 0; j < 9; j++)
+			sudoku_map[i][j] = sudoku_map[0][(j + shift[i - 1]) % 9];
+	//第i行是第一行左移shift[i]得到的  即sudo[i][j] = sudo[0][j右移shift[i]]
+	//j右移后可能超出9，所以要模9取余
 }
 
-//辅助函数（转换法）2 行交换
-void exchange_row(int row1, int row2) {
-	//int randNum = rand() % 4;
-	memcpy(sudoku_map, seed_map[0], sizeof(seed_map[0]));
-	int temp[9];
-	memcpy(temp, sudoku_map[row1], sizeof(sudoku_map[row1]));
-	memcpy(sudoku_map[row1], sudoku_map[row2], sizeof(sudoku_map[row2]));
-	memcpy(sudoku_map[row2], temp, sizeof(temp));
-}
 
-//辅助函数（转换法）3 列交换
-void exchange_col(int col1, int col2) {
-	//int randNum = rand() % 4;
-	memcpy(sudoku_map, seed_map[0], sizeof(seed_map[0]));
-	int temp;
-	for (int i = 0; i < 9; i++) {
-		temp = sudoku_map[i][col1];
-		sudoku_map[i][col1] = sudoku_map[i][col2];
-		sudoku_map[i][col2] = temp;
-	}
-}
 
-void exchange(int v1, int v2, bool is_row) {
-	if (is_row)exchange_row(v1, v2);
-	else exchange_col(v1, v2);
-}
 
-void make_row_col(makePair pair1,makePair pair2,makePair pair3,bool is_row) {
-	if (pair1 == pairs[1])exchange(1, 2, is_row);
-	if (pair1 == pairs[2])exchange(0, 1, is_row);
-	if (pair1 == pairs[3]) {
-		exchange(0, 1, is_row);
-		exchange(1, 2, is_row);
-	}
-	if (pair1 == pairs[4])exchange(0, 2, is_row);
-	if (pair1 == pairs[5]) {
-		exchange(0, 2, is_row);
-		exchange(1, 2, is_row);
-	}
-	if (pair2 == pairs[7])exchange(4, 5, is_row);
-	if (pair2 == pairs[8])exchange(3, 4, is_row);
-	if (pair2 == pairs[9]) {
-		exchange(3, 4, is_row);
-		exchange(4, 5, is_row);
-	}
-	if (pair2 == pairs[10])exchange(3, 5, is_row);
-	if (pair2 == pairs[11]) {
-		exchange(3, 5, is_row);
-		exchange(4, 5, is_row);
-	}
-	if (pair3 == pairs[13])exchange(7, 8, is_row);
-	if (pair3 == pairs[14])exchange(6, 7, is_row);
-	if (pair3 == pairs[15]){
-		exchange(6, 7, is_row); 
-		exchange(7, 8, is_row);
-	}
-	if (pair3 == pairs[16])exchange(6, 8, is_row);
-	if (pair3 == pairs[17]) {
-		exchange(6, 8, is_row);
-		exchange(7, 8, is_row);
-	}
-}
+
 
 // 生成指定数目的数独终局,出于性能考虑，使用矩阵转化法而非随机法
 void generate_sudoku() {
-	int cnt_number = 0; // 已经生成的数独数目
-	int value1 = 1,value2 = 1;
-	int temp1[9][9], temp2[9][9];
-	/*for (value1 = 1; value1 <= 9; value1++)
-	{
-		for (value2 = value1; value2 <= 9 && cnt_number < c; value2++)
-		{
-
-			if (value2 == value1 && value2 != 1)continue;
-			exchange_number(value1, value2);*/
-	memcpy(sudoku_map, seed_map[0], sizeof(seed_map[0]));
-			memcpy(temp1, sudoku_map, sizeof(sudoku_map));
-			for (int row_cv1 = 0; row_cv1 < 2; row_cv1++) {
-				for (int row_cv2 = 6; row_cv2 < 12; row_cv2++) {
-					for (int row_cv3 = 12; row_cv3 < 18; row_cv3++) {
-						//memcpy(sudoku_map, temp1, sizeof(temp1));
-						make_row_col(pairs[row_cv1], pairs[row_cv2], pairs[row_cv3], true);
-						//memcpy(temp2, sudoku_map, sizeof(sudoku_map));
-						for (int col_cv1 = 0; col_cv1 < 6; col_cv1++) {
-							for (int col_cv2 = 6; col_cv2 < 12; col_cv2++) {
-								for (int col_cv3 = 12; col_cv3 < 18 && cnt_number < c; col_cv3++) {
-									//memcpy(sudoku_map, temp2, sizeof(temp2));
-									make_row_col(pairs[col_cv1], pairs[col_cv2], pairs[col_cv3], false);
-									cnt_number++;
-									out_to_txt();
-								}
-							}
-						}
-					}
-				}
+	int cnt_number = 0;
+	while (cnt_number++ < c) {
+		if (s2 == 6) {
+			if (s1 == 6) {
+				next_permutation(firstLine,firstLine+9);
+				memcpy(sudoku_map[0], firstLine, sizeof(firstLine));
+				s1 = 1;
 			}
-		//}
-		/*cout << cnt_number << endl;
-	}*/
+			else s1++;
+			s2 = 1;
+		}
+		produce();
+		out_to_txt();
+		s2++;
+		if(cnt_number%1000 == 0)
+			cout << cnt_number << endl;
+	}
 	out.close();
 }
 
