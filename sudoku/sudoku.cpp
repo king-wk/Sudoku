@@ -1,279 +1,340 @@
-﻿#include <iostream>
-#include<fstream>
-#include <stdlib.h>
-#include <time.h> 
-#include <algorithm>
-#pragma warning(disable:4996)
-using namespace std;
-
-
-int seed_map[4][9][9];
-int sudoku_map[9][9]; // 棋盘
-int c = 0; // 生成数独终局的个数
-char gamepath[64];
-int level = 1; // 难度等级
-int minblank = 0; // 挖空个数
-int maxblank = 0;
-int number = 0; // 生成游戏个数
-bool unique = false; // 生成解是否唯一
-ofstream out;
-int firstLine[9] = { 1,2,3,4,5,6,7,8,9 };//第一行
-int shift[8] = { 3, 6, 1, 4, 7, 2, 5, 8 };//第2-9行所需移位
-int cv1[3] = { 3, 4, 5 };
-int cv2[3] = { 6, 7, 8 };
-int s1=1, s2=1;
-
-void swap(int &a, int &b) {
-	int temp = a;
-	a = b;
-	b = temp;
-}
-//清空输出文件夹
-void init() {
-	memcpy(sudoku_map[0], firstLine, sizeof(firstLine));
-	ofstream clear;
-	clear.open("D://Software Project//sudoku//test.txt");
-	clear << "";
-	clear.close();
-	out.open("D://Software Project//sudoku//test.txt", ios::app);
+﻿#include "sudoku.h"
+bool sudoku::check(int x, int y, int z) {
+	// 只需要判断第x行，第y列还没有填上z，[x][y]所属九宫格还没有填上z即可
+	return (!valid_row[x][z] && !valid_col[y][z] && !valid_grid[belonging(x, y)][z]);
 }
 
-void exchange_456(int s1)     //中间4，5，6行的变换
-{
-	if (s1 == 1) { cv1[0] = 3; cv1[1] = 4; cv1[2] = 5; }
-	if (s1 == 2) { cv1[0] = 3; cv1[1] = 5; cv1[2] = 4; }
-	if (s1 == 3) { cv1[0] = 4; cv1[1] = 3; cv1[2] = 5; }
-	if (s1 == 4) { cv1[0] = 4; cv1[1] = 5; cv1[2] = 3; }
-	if (s1 == 5) { cv1[0] = 5; cv1[1] = 3; cv1[2] = 4; }
-	if (s1 == 6) { cv1[0] = 5; cv1[1] = 4; cv1[2] = 3; }
+// 生成到final_sudoku里面
+void sudoku::generate_final(int n, int type) {
+	memset(valid_grid, false, sizeof(valid_grid));
+	memset(valid_col, false, sizeof(valid_col));
+	memset(valid_row, false, sizeof(valid_row));
+	cur_num = 0;
+	number = n;
+	hasAnswer = false;
+	dfs_generate(0, type);
 }
-
-void exchange_789(int s2)     //最后7，8，9行的变换
-{
-	if (s2 == 1) { cv2[0] = 6; cv2[1] = 7; cv2[2] = 8; }
-	if (s2 == 2) { cv2[0] = 6; cv2[1] = 8; cv2[2] = 7; }
-	if (s2 == 3) { cv2[0] = 7; cv2[1] = 6; cv2[2] = 8; }
-	if (s2 == 4) { cv2[0] = 7; cv2[1] = 8; cv2[2] = 6; }
-	if (s2 == 5) { cv2[0] = 8; cv2[1] = 6; cv2[2] = 7; }
-	if (s2 == 6) { cv2[0] = 8; cv2[1] = 7; cv2[2] = 6; }
-}
-
-//辅助函数 终盘->文件
-void out_to_txt() {
-	exchange_456(s1);
-	exchange_789(s2); //判断当前两个参数表示哪两种顺序
-	//输出数独
-	for (int i = 0; i < 9; i++)
-	{
-		int k = i;
-		if (k >= 3 && k <= 5) k = cv1[k - 3];
-		else if (k > 5) k = cv2[k - 6];
-		for (int j = 0; j <= 8; j++) {
-			int kt = j * 2;
-			out << sudoku_map[k][j];
-			out << " ";
+// 写数独
+void sudoku::write_file(int* s) {
+	char temp[300];
+	int len = 0;
+	for (int i = 0;i < 81;i++) {
+		if (s[i] == 0) {
+			temp[len++] = '$';
 		}
-		out << endl;
+		else if (s[i] > 0 && s[i] <= 9) {
+			temp[len++] = s[i] + '0';
+		}
+		temp[len++] = (((i + 1) % 9) == 0) ? '\n' : ' ';
 	}
-	out << endl;
+	temp[len++] = '\n';
+	temp[len] = '\0';
+	cout << temp << endl;
+	out << temp;
+	//cout << "写完了" << endl;
 }
 
-void produce()  //第一行已知，通过变换得到完整的数独终局
-{
-	for (int i = 1; i < 9; i++)
-		for (int j = 0; j < 9; j++)
-			sudoku_map[i][j] = sudoku_map[0][(j + shift[i - 1]) % 9];
-	//第i行是第一行左移shift[i]得到的  即sudo[i][j] = sudo[0][j右移shift[i]]
-	//j右移后可能超出9，所以要模9取余
-}
-
-
-
-
-
-
-// 生成指定数目的数独终局,出于性能考虑，使用矩阵转化法而非随机法
-void generate_sudoku() {
-	int cnt_number = 0;
-	while (cnt_number++ < c) {
-		if (s2 == 6) {
-			if (s1 == 6) {
-				next_permutation(firstLine,firstLine+9);
-				memcpy(sudoku_map[0], firstLine, sizeof(firstLine));
-				s1 = 1;
-			}
-			else s1++;
-			s2 = 1;
-		}
-		produce();
-		out_to_txt();
-		s2++;
-		if(cnt_number%1000 == 0)
-			cout << cnt_number << endl;
+void sudoku::dfs_generate(int k, int type) {
+	if (hasAnswer) {
+		//cout << "cur_num" << cur_num << endl;
+		return;
 	}
-	out.close();
-}
-
-// 生成指定数目的数独游戏
-void generate_sudoku_problem() {
-
-}
-
-void solve_single_sudoku() {
-
-}
-
-// 求解指定路径的数独题目
-void solve_sudoku(string gamepath) {
-
-}
-
-void print_error_info() {
-	cout << "Illegal input\n"
-		<< "Usage:\n"
-		<< "      sudoku.exe -c count --> generate given count sudoku finals. \n"
-		<< "      sudoku.exe -s path --> Read sudoku from file in the given path, and solve them.\n"
-		<< "      sudoku.exe -n number --> Generate given number sudoku games\n"
-		<< "      sudoku.exe -n number -m 1/2/3 --> Generate given number sudoku games with 1/2/3 level difficulty.\n"
-		<< "      sudoku.exe -n number -r blank_number --> Generate given number sudoku games with given blank number.\n"
-		<< "      sudoku.exe -n number -u --> Generating given number sudoku games with only one solution.\n";
-}
-
-int main(int argc, char** argv)
-{
-	srand((unsigned)time(NULL));
-	init();
-	if (argc == 3 && (!strcmp(argv[1], "-c") || !strcmp(argv[1], "-s") || !strcmp(argv[1], "-n"))) {
-		// 求解指定文件的数独问题，将解答保存到sudoku.txt
-		if (!strcmp(argv[1], "-s")) {
-			strcpy(gamepath, argv[2]);
-			solve_sudoku(gamepath);
-			cout << "The answer you need is in the sudoku.txt\n"
-				<< "Have a check!\n";
-			return 0;
+	// k表示已经填完的空
+	if (k > 80) {
+		if (type) {
+			//cout << "write..." << endl;
+			write_file(map);
+			//cout << "write finish" << endl;
 		}
-		else {
-			int len = strlen(argv[2]);
-			for (int i = 0; i < len; i++)
-			{
-				if (argv[2][i] > '9' || argv[2][i] < '0')
-				{
-					print_error_info();
-					return 0;
-				}
-			}
-			int n = 0;
-			for (int i = 0; i < len; i++)
-			{
-				n = n * 10 + argv[2][i] - '0';
-			}
-			// 生成count个数独终局存到文件generate_sudoku.txt中
-			if (!strcmp(argv[1], "-c")) {
-				c = n;
-				generate_sudoku();
-				cout << "The sudoku final generated is in the generate_sudoku.txt\n"
-					<< "Have a check!\n";
-				return 0;
-			}
-			// 生成指定数量的数独问题
-			if (!strcmp(argv[1], "-n")) {
-				number = n;
-				generate_sudoku_problem();
-				cout << "The sudoku problems generated is in the sudoku_problem.txt\n"
-					<< "Have a check\n";
-				return 0;
-			}
+		// cout << cur_num << " " << number << endl;
+		memcpy(final_sudoku[cur_num], map, sizeof(map)); // 存储答案
+		cur_num++;
+		if (cur_num >= number) {
+			cout << cur_num << " " << number << endl;
+			hasAnswer = 1;
 		}
-	}
-	// 生成指定数量且只有唯一解的数独问题
-	else if (argc == 4 && !strcmp(argv[1], "-n") && !strcmp(argv[3], "-u")) {
-		int len = strlen(argv[2]);
-		for (int i = 0; i < len; i++)
-		{
-			if (argv[2][i] > '9' || argv[2][i] < '0')
-			{
-				print_error_info();
-				return 0;
-			}
-		}
-		int n = 0;
-		for (int i = 0; i < len; i++)
-		{
-			n = n * 10 + argv[2][i] - '0';
-		}
-		if (!strcmp(argv[1], "-n")) {
-			number = n;
-			generate_sudoku_problem();
-			cout << "The sudoku problems generated is in the sudoku_problem.txt\n"
-				<< "Have a check\n";
-			return 0;
-		}
-	}
-	else if (argc == 5 && !strcmp(argv[1], "-n") && (!strcmp(argv[3], "-m") || !strcmp(argv[3], "-r"))) {
-		int len = strlen(argv[2]);
-		for (int i = 0; i < len; i++)
-		{
-			if (argv[2][i] > '9' || argv[2][i] < '0')
-			{
-				print_error_info();
-				return 0;
-			}
-		}
-		int n = 0;
-		for (int i = 0; i < len; i++)
-		{
-			n = n * 10 + argv[2][i] - '0';
-		}
-		// 生成指定数量且指定难度的数独问题
-		if (!strcmp(argv[3], "-m")) {
-			int len = strlen(argv[4]);
-			if (len == 1) {
-				level = argv[4][0] - '0';
-				number = n;
-				generate_sudoku_problem();
-				cout << "The sudoku problems generated is in the sudoku_problem.txt\n"
-					<< "Have a check\n";
-				return 0;
-			}
-			else {
-				print_error_info();
-			}
-		}
-		// 生成指定数量且指定空白数量的数独问题
-		else {
-			int minblank = 0, maxblank = 0;
-			int len = strlen(argv[4]);
-			for (int i = 0; i < len; i++)
-			{
-				if ((argv[4][i] > '9' || argv[4][i] < '0') && (argv[4][i] != '~' || i == 0 || i == len - 1))
-				{
-					print_error_info();
-					return 0;
-				}
-			}
-			int flag = 0;
-			for (int i = 0; i < len; i++)
-			{
-				if (argv[4][i] == '~') {
-					flag = 1;
-				}
-				if (flag) {
-					maxblank= maxblank * 10 + argv[4][i] - '0';
-				}
-				else {
-					minblank = minblank * 10 + argv[4][i] - '0';
-				}
-			}
-			number = n;
-			generate_sudoku_problem();
-			cout << "The sudoku problems generated is in the sudoku_problem.txt\n"
-				<< "Have a check\n";
-			return 0;
-		}
+		return;
 	}
 	else {
-		print_error_info();
+		int x = k / 9;
+		int y = k % 9;
+		int p = belonging(x, y);
+		for (int z = 1;z <= 9;z++) {
+			if (check(x, y, z) && !hasAnswer) {
+				map[k] = z;
+				valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = true;
+				dfs_generate(k + 1, type);
+				valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = false;
+			}
+		}
 	}
-	system("pause");
-	return 0;
+}
+
+// 增加一个数独元素的限制，判断pos处是不是不能填r
+bool sudoku::deleteElement(int pos, int r) {
+	//cout << "delete " << pos << " r=" << r << endl;
+	int i;
+	//cout << "limit" << limit[pos][r] << endl;
+	if (limit[pos][r] == 1) { // 已经存在不能填r的限制，没问题
+		return true;
+	}
+	//cout << "a" << endl;
+	limit[pos][r] = 1; // 增加限制，不让填r
+	if (++limit[pos][0] == 9) { // 代表这个格子没有值可以填了，所有的值都限制了
+		return false;
+	}
+	//cout << "b" << endl;
+	if (limit[pos][0] == 8) { // 还剩下一个值可以填
+		for (i = 1; i <= 9; ++i) {
+			if (limit[pos][i] == 0) {  // 找到是谁可以填
+				break;
+			}
+		}
+		if (!modifyElement(pos, i)) { // 填它，如果不行，完蛋了
+			return false;
+		}
+	}
+	//cout << "c" << endl;
+	return true;
+}
+
+// 填充一个元素，增加限制
+bool sudoku::modifyElement(int pos, int r) {
+	int x = pos / 9;  // 行号
+	int y = pos % 9;  // 列号
+	int h;
+	map[pos] = r;
+	for (int i = 1;i <= 9;i++) {
+		limit[pos][i] = 1;
+	}
+	limit[pos][0] = 8;
+	limit[pos][r] = 0;  // 只能填r
+	for (int i = 0; i < 9; i++) {// 增加同行的其它格子的限制
+		h = position(x, i);
+		// 在不是pos的地方如果也可以填r，则错误
+		if (h != pos && !deleteElement(h, r)) {
+			return false;
+		}
+	}
+	//cout << "row.." << endl;
+	for (int i = 0; i < 9; i++) {// 增加同列的其它格子的限制
+		h = position(i, y);
+		if (h != pos && !deleteElement(h, r)) {
+			return false;
+		}
+	}
+	//cout << "col.." << endl;
+	for (int i = 0; i < 3; i++) {// 增加同九宫格的其它格子的限制
+		for (int j = 0; j < 3; j++) {
+			h = (3 * (x / 3) + i) * 9 + (3 * (y / 3) + j);
+			if (h != pos && !deleteElement(h, r)) {
+				return false;
+			}
+		}
+	}
+	//cout << "grid.." << endl;
+	return true;
+}
+
+void sudoku::dfs_solve(int k, int type) {
+	int mx = -1, mxi;
+	for (int i = 0;i < 81;i++) {
+		// 找到限制最多且还没有填的那个空
+		if (limit[i][0] < 8 && limit[i][0] > mx) {
+			mx = limit[i][0];
+			mxi = i;
+		}
+	}
+	// 全部填完了
+	if (mx == -1) {
+		if (type) {
+			write_file(map);
+		}
+		hasAnswer++;
+		return;
+	}
+	memcpy(limit_backup[k], limit, M * N * 4);
+	for (int i = 1;i <= 9;i++) {
+		if (limit[mxi][i] == 0) { // 如果这个格子对填i没有限制，填一填，试一下啦
+			if (modifyElement(mxi, i)) {
+				dfs_solve(k + 1, 1);
+			}
+			memcpy(limit, limit_backup[k], M * N * 4);
+		}
+		if (hasAnswer >= 2) {
+			return;
+		}
+	}
+}
+
+void sudoku::solve_problem(fstream& in) {
+	char s[20];
+	int total = 0;
+	while (in.getline(s, 20)) {
+		for (int i = 0;i < strlen(s);i++) {
+			// cout << s[i];
+			if (s[i] == '$') {
+				map[total++] = 0;
+			}
+			else {
+				if (s[i] <= '0' || s[i] > '9')
+					continue;
+				map[total++] = s[i] - '0';
+			}
+			if (total == 81) {
+				for (int j = 0;j < 81;j++) {
+					if (map[j] > 0) {
+						//cout << "modifyed.." << endl;
+						modifyElement(j, map[j]);
+						//cout << j << endl;
+					}
+				}
+				//cout << "start solve.." << endl;
+				dfs_solve(1, 1);
+				total = 0;
+				hasAnswer = 0;
+				for (int j = 0;j < M;j++) {
+					memset(limit[j], 0, N * 4);
+				}
+			}
+		}
+	}
+}
+
+// 计算数独的自由度
+int sudoku::freedom(int a[M]) {
+	int res = 0, x, y, h;
+	for (int node = 0;node < 81;node++) {
+		if (a[node] != 0)
+			continue;
+		x = node / 9;
+		y = node % 9;
+		for (int q = 0;q < 9;q++) {
+			if (q != y && a[x * 9 + q] == 0) {
+				res++;
+			}
+		}
+		for (int p = 0;p < 9;p++) {
+			if (p != x && a[p * 9 + y] == 0) {
+				res++;
+			}
+		}
+		for (int i = 0;i < 3;i++) {
+			for (int j = 0;j < 3;j++) {
+				h = (3 * (x / 3) + i) * 9 + (3 * (y / 3) + j);
+				if (h != node && a[h] == 0) {
+					res++;
+				}
+			}
+		}
+	}
+	return res;
+}
+
+double sudoku::getRandData(int min, int max) { 
+	return (double)(rand() % 101) / 100;
+}
+
+// 从填满元素的数独中挖空的回溯，已经挖了total+1个
+void sudoku::dfs_dig(int k, int total) { 
+	if (k > 80) {
+		return;
+	}
+	double t = getRandData(0, 1);
+	if ((total == num_0 || t >= 0.5) && (81 - k >= num_0 - total))// 当剩下的格子大于剩余需要空0的个数，可以随机确定是否需要空0
+	{
+		//cout << "total" << total << endl;
+		//cout << "k" << k << endl;
+		//cout << "num_0" << num_0 << endl;
+		// 这个格子不空
+		game[k] = final_sudoku[id][k];
+		dfs_dig(k + 1, total);
+	}
+	else {
+		// 这个格子空了
+		game[k] = 0;
+		//cout << "空了" << k << endl;
+		dfs_dig(k + 1, total + 1);
+	}
+}
+
+int sudoku::generate_single(int num_0_t, int id_t) {
+	id = id_t;
+	num_0 = num_0_t;
+	memset(game, 0, sizeof(game));
+	//cout << "start dig" << endl;
+	dfs_dig(0, 0);
+	int free = freedom(game);
+	// cout << "free" << free << endl;
+	return free;
+}
+
+int sudoku::get_solution(int a[M]) {
+	hasAnswer = 0;
+	memcpy(map, a, sizeof(map));
+	memset(a, 0, sizeof(a));
+	for (int i = 0;i < 81;i++) {
+		if (a[i] > 0) {
+			modifyElement(i, a[i]);
+		}
+	}
+	dfs_solve(1, 0);
+	return hasAnswer;
+}
+
+// 生成numer个数独，0的个数在[from, ran + from - 1]中，自由度在[dow, upd]中
+void sudoku::generate(int number, int from, int ran, int dow, int upd, bool unique, int** result) {
+	cout << "生成。。。" << endl;
+	int first, fre, cnt_f = 0, id_t = 0, uni, times = 0;
+	while (cnt_f < number) {
+		first = random(ran) + from;
+		fre = generate_single(first, id);
+		if (fre >= dow && fre <= upd) {
+			if (unique) {
+				uni = get_solution(game);
+				if (uni > 1) {
+					times++;
+					if (times > 100) {
+						id++;
+						times = 0;
+					}
+					continue;
+				}
+			}
+			memcpy(result[cnt_f++], game, sizeof(game));
+		}
+		id++;
+		times = 0;
+	}
+}
+
+void sudoku::generate(int number, int** result) {
+	generate_final(50000, 0);
+	generate(number, 16, 17, 0, 650, false, result);
+}
+
+void sudoku::generate(int number, int mode, int** result) {
+	generate_final(50000, 0);
+	switch (mode)
+	{
+	case 1:
+		generate(number, 16, 17, 0, 650, false, result);
+		break;
+	case 2:
+		generate(number, 32, 17, 651, 999, false, result);
+		break;
+	case 3:
+		generate(number, 48, 17, 1000, 1944, false, result);
+		break;
+	}
+}
+
+void sudoku::generate(int number, int lower, int upper, int** result) {
+	generate_final(50000, 0);
+	generate(number, lower, upper - lower + 1, 0, 1944, false, result);
+}
+
+void sudoku::generate(int number, bool unique, int **result) {
+	generate_final(50000, 0);
+	generate(number, 16, 17, 0, 650, true, result);
 }
