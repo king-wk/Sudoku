@@ -104,7 +104,7 @@ public:
 	// 生成一个数组，有num_0个0，返回自由度
 	int generate_single(int num_0, int id);
 	//-----------------求解--------------------
-	void solve_problem(fstream& in);
+	bool solve_problem(fstream& in);
 	// 对于输入的数独题目problem（数独矩阵按行展开为一维数组），返回一个bool值表示是否有解。如果有解，则将一个可行解存储在solution中（同样表示为数独矩阵的一维数组展开）
 	// bool solve(int problem[M], int solution[M]);
 };

@@ -50,7 +50,7 @@ void sudoku::dfs_generate(int k, int type) {
 		memcpy(final_sudoku[cur_num], map, sizeof(map)); // 存储答案
 		cur_num++;
 		if (cur_num >= number) {
-			cout << cur_num << " " << number << endl;
+			// cout << cur_num << " " << number << endl;
 			hasAnswer = 1;
 		}
 		return;
@@ -167,7 +167,7 @@ void sudoku::dfs_solve(int k, int type) {
 	}
 }
 
-void sudoku::solve_problem(fstream& in) {
+bool sudoku::solve_problem(fstream& in) {
 	char s[20];
 	int total = 0;
 	while (in.getline(s, 20)) {
@@ -185,7 +185,9 @@ void sudoku::solve_problem(fstream& in) {
 				for (int j = 0;j < 81;j++) {
 					if (map[j] > 0) {
 						//cout << "modifyed.." << endl;
-						modifyElement(j, map[j]);
+						if (!modifyElement(j, map[j])) {// 如果原有元素矛盾，停止求解
+							return false;
+						}
 						//cout << j << endl;
 					}
 				}
@@ -199,6 +201,7 @@ void sudoku::solve_problem(fstream& in) {
 			}
 		}
 	}
+	return true;
 }
 
 // 计算数独的自由度
@@ -231,12 +234,12 @@ int sudoku::freedom(int a[M]) {
 	return res;
 }
 
-double sudoku::getRandData(int min, int max) { 
+double sudoku::getRandData(int min, int max) {
 	return (double)(rand() % 101) / 100;
 }
 
 // 从填满元素的数独中挖空的回溯，已经挖了total+1个
-void sudoku::dfs_dig(int k, int total) { 
+void sudoku::dfs_dig(int k, int total) {
 	if (k > 80) {
 		return;
 	}
@@ -284,10 +287,11 @@ int sudoku::get_solution(int a[M]) {
 
 // 生成numer个数独，0的个数在[from, ran + from - 1]中，自由度在[dow, upd]中
 void sudoku::generate(int number, int from, int ran, int dow, int upd, bool unique, int** result) {
-	cout << "生成。。。" << endl;
+	// cout << "生成。。。" << endl;
 	int first, fre, cnt_f = 0, id_t = 0, uni, times = 0;
 	while (cnt_f < number) {
 		first = random(ran) + from;
+		// cout << first << endl;
 		fre = generate_single(first, id);
 		if (fre >= dow && fre <= upd) {
 			if (unique) {
@@ -334,7 +338,7 @@ void sudoku::generate(int number, int lower, int upper, int** result) {
 	generate(number, lower, upper - lower + 1, 0, 1944, false, result);
 }
 
-void sudoku::generate(int number, bool unique, int **result) {
+void sudoku::generate(int number, bool unique, int** result) {
 	generate_final(50000, 0);
 	generate(number, 16, 17, 0, 650, true, result);
 }

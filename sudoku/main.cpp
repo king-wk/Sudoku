@@ -41,11 +41,9 @@ int main(int argc, char* argv[]) {
 			if (number < 1 || number > 1000000) {
 				throw exception("-c number should be in [1,1000000]");
 			}
-			s.out.open("D://vsproject//sudoku//x64//Debug//generate_sudoku.txt", ios::app);
-			// fopen_s(&s.out, "D:\\vsproject\\sudoku\\x64\\Debug\\generate_sudoku.txt", "w+");
+			s.out.open("generate_sudoku.txt", ios::out);
 			// 生成数独终局
 			s.generate_final(number, 1);
-			// s.write_file();
 			cout << "The sudoku final generated is in the generate_sudoku.txt\n"
 				<< "Have a check!\n";
 		}
@@ -58,12 +56,16 @@ int main(int argc, char* argv[]) {
 			if (!in) {
 				throw exception("-s file doesn't exist");
 			}
-			s.out.open("D:\\vsproject\\sudoku\\x64\\Debug\\sudoku.txt", ios::app);
+			s.out.open("sudoku.txt", ios::out);
 			// 求解数独
-			s.solve_problem(in);
+			if (s.solve_problem(in)) {
+				cout << "The answer you need is in the sudoku.txt\n"
+					<< "Have a check!\n";
+			}
+			else {
+				throw exception("Wrong sudoku problem");
+			}
 			in.close();
-			cout << "The answer you need is in the sudoku.txt\n"
-				<< "Have a check!\n";
 		}
 		else if (strcmp(argv[1], "-n") == 0) {
 			if (!calc(argv[2])) {
@@ -73,8 +75,7 @@ int main(int argc, char* argv[]) {
 				throw exception("-n number should be in [1,10000]");
 			}// exe -n xx
 			if (argc == 3) {
-				s.out.open("D:\\vsproject\\sudoku\\x64\\Debug\\problem_sudoku.txt", ios::app);
-				// fopen_s(&s.out, "problem_sudoku.txt", "w+");
+				s.out.open("problem_sudoku.txt", ios::out);
 				s.generate(number, answer_sudoku);
 				for (int i = 0;i < number;i++) {
 					s.write_file(answer_sudoku[i]);
@@ -85,8 +86,7 @@ int main(int argc, char* argv[]) {
 			else if (argc == 4) {
 				// exe -n xx -u
 				if (strcmp(argv[3], "-u") == 0) {
-					s.out.open("D:\\vsproject\\sudoku\\x64\\Debug\\problem_sudoku.txt", ios::app);
-					// fopen_s(&s.out, "problem_sudoku.txt", "w");
+					s.out.open("problem_sudoku.txt", ios::out);
 					s.generate(number, (bool)true, answer_sudoku);
 					for (int i = 0;i < number;i++) {
 						s.write_file(answer_sudoku[i]);
@@ -103,12 +103,10 @@ int main(int argc, char* argv[]) {
 				if (strcmp(argv[3], "-m") == 0) {
 					int len = strlen(argv[4]);
 					int mode = argv[4][0] - '0';
-					cout << "mode" << mode << endl;
 					if (len > 1 || (mode != 1 && mode != 2 && mode != 3)) {
 						throw exception("-m number should be 1 or 2 or 3");
 					}
-					s.out.open("D:\\vsproject\\sudoku\\x64\\Debug\\problem_sudoku.txt", ios::app);
-					// fopen_s(&s.out, "problem_sudoku.txt", "w");
+					s.out.open("problem_sudoku.txt", ios::out);
 					s.generate(number, (int)mode, answer_sudoku);
 					for (int i = 0;i < number;i++) {
 						s.write_file(answer_sudoku[i]);
@@ -142,8 +140,7 @@ int main(int argc, char* argv[]) {
 					else if (lower < 1 || upper > 64 || lower > upper) {
 						throw exception("-r r1~r2 should be in [1, 64] and r1<=r2");
 					}
-					s.out.open("D:\\vsproject\\sudoku\\x64\\Debug\\problem_sudoku.txt", ios::app);
-					// fopen_s(&s.out, "problem_sudoku.txt", "w");
+					s.out.open("problem_sudoku.txt", ios::out);
 					s.generate(number, lower, upper, answer_sudoku);
 					for (int i = 0;i < number;i++) {
 						s.write_file(answer_sudoku[i]);
@@ -160,7 +157,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		else { // 没有-n的时候
-			throw exception("must be with -n");
+			throw exception("must be with -n before -m or -r");
 		}
 	}
 	catch (const std::exception& e)
