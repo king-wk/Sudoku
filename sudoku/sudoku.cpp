@@ -55,17 +55,15 @@ void sudoku::dfs_generate(int k, int type) {
 		}
 		return;
 	}
-	else {
-		int x = k / 9;
-		int y = k % 9;
-		int p = belonging(x, y);
-		for (int z = 1;z <= 9;z++) {
-			if (check(x, y, z) && !hasAnswer) {
-				map[k] = z;
-				valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = true;
-				dfs_generate(k + 1, type);
-				valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = false;
-			}
+	int x = k / 9;
+	int y = k % 9;
+	int p = belonging(x, y);
+	for (int z = 1;z <= 9;z++) {
+		if (check(x, y, z) && !hasAnswer) {
+			map[k] = z;
+			valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = true;
+			dfs_generate(k + 1, type);
+			valid_row[x][z] = valid_col[y][z] = valid_grid[p][z] = false;
 		}
 	}
 }
@@ -170,6 +168,7 @@ void sudoku::dfs_solve(int k, int type) {
 bool sudoku::solve_problem(fstream& in) {
 	char s[20];
 	int total = 0;
+	//if (!in.is_open())return false;
 	while (in.getline(s, 20)) {
 		for (int i = 0;i < strlen(s);i++) {
 			// cout << s[i];
