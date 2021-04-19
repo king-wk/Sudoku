@@ -25,6 +25,7 @@ private:
 	bool isEmpty[M];
 	int num_0;
 	int id;
+	int free;
 public:
 	sudoku() {
 		limit = new int* [M];
@@ -75,7 +76,7 @@ public:
 	void dfs_dig(int k, int total); //从填满元素的数独中挖total个空的回溯
 	int freedom(int a[M]); // 求解数独a的自由度
 	void write_file(int* s); // 写文件
-
+	int getFree();
 	double getRandData(int min, int max); // 随机返回0-1中的浮点数
 	int get_solution(int a[M]); // 返回数独数组的解的个数
 

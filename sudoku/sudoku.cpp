@@ -231,6 +231,11 @@ int sudoku::freedom(int a[M]) {
 		}
 	}
 	return res;
+	//this->free = res;
+}
+
+int sudoku::getFree() {
+	return this->free;
 }
 
 double sudoku::getRandData(int min, int max) {
@@ -291,14 +296,15 @@ void sudoku::generate(int number, int from, int ran, int dow, int upd, bool uniq
 	while (cnt_f < number) {
 		first = random(ran) + from;
 		// cout << first << endl;
-		fre = generate_single(first, id);
+		fre = generate_single(first, id_t);
 		if (fre >= dow && fre <= upd) {
+			this->free = fre;
 			if (unique) {
 				uni = get_solution(game);
 				if (uni > 1) {
 					times++;
 					if (times > 100) {
-						id++;
+						id_t++;
 						times = 0;
 					}
 					continue;
@@ -306,7 +312,7 @@ void sudoku::generate(int number, int from, int ran, int dow, int upd, bool uniq
 			}
 			memcpy(result[cnt_f++], game, sizeof(game));
 		}
-		id++;
+		id_t++;
 		times = 0;
 	}
 }
